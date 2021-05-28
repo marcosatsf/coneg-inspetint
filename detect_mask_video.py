@@ -6,10 +6,37 @@ from imutils.video import VideoStream
 import numpy as np
 import imutils
 import time
+import json
 import cv2
 import os
+import requests
+
+URL = 'http://localhost:8000/found'
+FILE_TEST = r'dataset\without_mask\0_0_aidai_0014.jpg'
+
+def send_packet_api():
+	#Prepare Input
+	request_info = {
+		"is_with_mask": True,
+		"ts": 1234,
+		"location": "Entrada 1"
+	}
+	files = {'file_uploaded': (FILE_TEST, open(FILE_TEST, 'rb'))}
+	#response = requests.post(url, json=request_info)
+	response = requests.post(URL, data=request_info, files=files)
+
+	print(response.status_code, response.json())
+	raise Exception
 
 def detect_and_predict_mask(frame, faceNet, maskNet):
+	"""
+	Function to detect and return prediction of a face using or not mask
+
+	Returns:
+		frame: frame of streaming video
+		faceNet: default facenet used to detect faces
+		maskNet: model trained used to detect
+	"""
 	# grab the dimensions of the frame and then construct a blob
 	# from it
 	(h, w) = frame.shape[:2]
@@ -19,7 +46,7 @@ def detect_and_predict_mask(frame, faceNet, maskNet):
 	# pass the blob through the network and obtain the face detections
 	faceNet.setInput(blob)
 	detections = faceNet.forward()
-	print(detections.shape)
+	print(f'detections.shape -> {detections.shape}')
 
 	# initialize our list of faces, their corresponding locations,
 	# and the list of predictions from our face mask network
@@ -34,7 +61,7 @@ def detect_and_predict_mask(frame, faceNet, maskNet):
 		confidence = detections[0, 0, i, 2]
 
 		# filter out weak detections by ensuring the confidence is
-		# greater than the minimum confidence
+		# greater than the minimum confidence of 50%
 		if confidence > 0.5:
 			# compute the (x, y)-coordinates of the bounding box for
 			# the object
@@ -53,7 +80,7 @@ def detect_and_predict_mask(frame, faceNet, maskNet):
 			face = cv2.resize(face, (224, 224))
 			face = img_to_array(face)
 			face = preprocess_input(face)
-
+			print(f'face -> {face}')
 			# add the face and bounding boxes to their respective
 			# lists
 			faces.append(face)
@@ -69,60 +96,64 @@ def detect_and_predict_mask(frame, faceNet, maskNet):
 
 	# return a 2-tuple of the face locations and their corresponding
 	# locations
+	print(f'preds -> {preds}')
 	return (locs, preds)
 
-# load our serialized face detector model from disk
-prototxtPath = r"face_detector\deploy.prototxt"
-weightsPath = r"face_detector\res10_300x300_ssd_iter_140000.caffemodel"
-faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
+if __name__ == "__main__":
+	# load our serialized face detector model from disk
+	prototxtPath = r"face_detector\deploy.prototxt"
+	weightsPath = r"face_detector\res10_300x300_ssd_iter_140000.caffemodel"
+	faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
 
-# load the face mask detector model from disk
-maskNet = load_model("mask_detector.model")
+	# load the face mask detector model from disk
+	maskNet = load_model("face_detector\mask_detector.model")
 
-# initialize the video stream
-print("[INFO] starting video stream...")
-vs = VideoStream(src=0).start()
+	# initialize the video stream
+	print("[INFO] starting video stream...")
+	vs = VideoStream(src=0).start()
 
-# loop over the frames from the video stream
-while True:
-	# grab the frame from the threaded video stream and resize it
-	# to have a maximum width of 400 pixels
-	frame = vs.read()
-	frame = imutils.resize(frame, width=400)
+	# loop over the frames from the video stream
+	while True:
+		# grab the frame from the threaded video stream and resize it
+		# to have a maximum width of 400 pixels
+		frame = vs.read()
+		frame = imutils.resize(frame, width=400)
 
-	# detect faces in the frame and determine if they are wearing a
-	# face mask or not
-	(locs, preds) = detect_and_predict_mask(frame, faceNet, maskNet)
+		# detect faces in the frame and determine if they are wearing a
+		# face mask or not
+		(locs, preds) = detect_and_predict_mask(frame, faceNet, maskNet)
 
-	# loop over the detected face locations and their corresponding
-	# locations
-	for (box, pred) in zip(locs, preds):
-		# unpack the bounding box and predictions
-		(startX, startY, endX, endY) = box
-		(mask, withoutMask) = pred
+		# loop over the detected face locations and their corresponding
+		# locations
+		for (box, pred) in zip(locs, preds):
+			# unpack the bounding box and predictions
+			(startX, startY, endX, endY) = box
+			(mask, withoutMask) = pred
 
-		# determine the class label and color we'll use to draw
-		# the bounding box and text
-		label = "Mask" if mask > withoutMask else "No Mask"
-		color = (0, 255, 0) if label == "Mask" else (0, 0, 255)
+			# determine the class label and color we'll use to draw
+			# the bounding box and text
+			label = "Mask" if mask > withoutMask else "No Mask"
+			color = (0, 255, 0) if label == "Mask" else (0, 0, 255)
+			if(label == 'Mask'):
+				send_packet_api()
 
-		# include the probability in the label
-		label = "{}: {:.2f}%".format(label, max(mask, withoutMask) * 100)
+			# include the probability in the label
+			label = "{}: {:.2f}%".format(label, max(mask, withoutMask) * 100)
 
-		# display the label and bounding box rectangle on the output
-		# frame
-		cv2.putText(frame, label, (startX, startY - 10),
-			cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
-		cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
+			# display the label and bounding box rectangle on the output
+			# frame
+			cv2.putText(frame, label, (startX, startY - 10),
+				cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
+			cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
 
-	# show the output frame
-	cv2.imshow("Frame", frame)
-	key = cv2.waitKey(1) & 0xFF
+		# show the output frame
+		cv2.imshow("Frame", frame)
+		key = cv2.waitKey(1) & 0xFF
 
-	# if the `q` key was pressed, break from the loop
-	if key == ord("q"):
-		break
+		# if the `q` key was pressed, break from the loop
+		if key == ord("q"):
+			break
 
-# do a bit of cleanup
-cv2.destroyAllWindows()
-vs.stop()
+	# do a bit of cleanup
+	cv2.destroyAllWindows()
+	vs.stop()

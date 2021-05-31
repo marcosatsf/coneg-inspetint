@@ -2,7 +2,7 @@
 Intelligent inspector which detects faces (not) wearing masks
 
 At the current state of this project, NN model is already created so there's no
-need to train it again (unless you want to, follow [this](train/train_inspector.ipynb)notebook).
+need to train it again (unless you want to, follow [this](train/train_inspector.ipynb) notebook).
 
 ![Example](assets/example.png "Running example")
 

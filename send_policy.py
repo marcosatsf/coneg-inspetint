@@ -11,11 +11,11 @@ class SendPolicy:
         """
         self.ready = True
         self.mutex = Lock()
-        self.URL = 'http://localhost:8000/found'
 
         with open(f'config{os.sep}config_insp.yaml', 'r') as f:
             self.vars = yaml.load(f)
 
+        self.URL = self.vars['url_api']
         self.time = self.vars['delay']
         self.request_info = {
             'ts': self.get_now(),

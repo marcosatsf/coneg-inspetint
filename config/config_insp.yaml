@@ -4,4 +4,5 @@
 delay: 5
 # Location of this Inspector
 location: "Entrada principal"
-
+# URL to reach API
+url_api: "http://localhost:8000/found"

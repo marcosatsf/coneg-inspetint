@@ -3,6 +3,7 @@ from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.models import load_model
 from imutils.video import VideoStream
 from send_policy import SendPolicy
+from tracker import EuclideanDistTracker
 import numpy as np
 import imutils
 import cv2
@@ -11,15 +12,20 @@ import os
 class Inspector():
 	def __init__(self):
 		"""
-		
-			Returns:
-				frame: frame of streaming video
-				faceNet: default facenet used to detect faces
-				maskNet: model trained used to detect
+		Initializes Inpector variables and objects.
+
+		Returns:
+			frame: frame of streaming video.
+			faceNet: default facenet used to detect faces.
+			maskNet: model trained used to detect.
 		"""
 		# instantiate policy to send packet
 		print("[INFO] Starting send policy...")
 		self.sp = SendPolicy()
+
+		print("[INFO] Starting euclidean distance tracker...")
+		self.current_face = -1
+		self.tracker = EuclideanDistTracker()
 
 		print("[INFO] Starting face/maskNet...")
 		# load our serialized face detector model from disk
@@ -36,7 +42,7 @@ class Inspector():
 
 	def detect_and_predict_mask(self):
 		"""
-		Function to detect and return prediction of a face using or not mask
+		Function to detect and return prediction of a face using or not mask.
 		"""
 		# grab the dimensions of the frame and then construct a blob
 		# from it
@@ -112,9 +118,11 @@ class Inspector():
 
 			# loop over the detected face locations and their corresponding
 			# locations
-			for (box, pred) in zip(self.locs, self.preds):
+			boxes_ids = self.tracker.update(self.locs)
+			#print(boxes_ids)
+			for (box, pred) in zip(boxes_ids, self.preds):
 				# unpack the bounding box and predictions
-				(startX, startY, endX, endY) = box
+				(startX, startY, endX, endY, id_registered) = box
 				(mask, withoutMask) = pred
 
 				# determine the class label and color we'll use to draw
@@ -128,8 +136,12 @@ class Inspector():
 					face_detected = self.frame[startY:endY, startX:endX]
 					image_bytes = cv2.imencode('.jpg', face_detected)[1].tobytes()
 
-				# interacts with API
-				self.sp.send(image_bytes)
+				print(self.current_face, id_registered)
+				if self.current_face < id_registered:
+					self.current_face = id_registered
+					# interacts with API
+					self.sp.send(image_bytes)
+
 
 				color = (0, 255, 0) if label == "Mask" else (0, 0, 255)
 
@@ -138,6 +150,8 @@ class Inspector():
 
 				# display the label and bounding box rectangle on the output
 				# frame
+				cv2.putText(self.frame, str(id_registered), (startX, startY - 25),
+					cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 0, 0), 2)
 				cv2.putText(self.frame, label, (startX, startY - 10),
 					cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
 				cv2.rectangle(self.frame, (startX, startY), (endX, endY), color, 2)

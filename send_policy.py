@@ -1,6 +1,8 @@
-from threading import Lock, Thread
+from threading import Thread
 from time import sleep, time
+#import face_recognition
 import requests
+#import numpy as np
 import yaml
 import os
 
@@ -10,7 +12,6 @@ class SendPolicy:
         Initialize SendPolicy module, establishing some vars.
         """
         self.ready = True
-        self.mutex = Lock()
 
         with open(f'config{os.sep}config_insp.yaml', 'r') as f:
             self.vars = yaml.load(f)
@@ -24,6 +25,7 @@ class SendPolicy:
         self.upload_info = {
             'file_uploaded': None
         }
+        self.past_req = None
 
 
     def get_now(self) -> int:
@@ -31,9 +33,10 @@ class SendPolicy:
         Returns current floor time.
 
         Returns:
-            int: timestamp current time
+            int: timestamp current time.
         """
-        return int(time())
+        # With timezone GMT-3
+        return int(time())-10800
 
 
     def send(self, frame_in_bytes: bytes) -> None:
@@ -42,7 +45,7 @@ class SendPolicy:
         given the delay value.
 
         Args:
-            frame_in_bytes (bytes): bytes to send as a file
+            frame_in_bytes (bytes): bytes to send as a file.
         """
         if self.ready:
             self.ready = False
@@ -55,7 +58,7 @@ class SendPolicy:
         Sends data to API. If not wearing mask, sends frame also.
 
         Args:
-            frame_in_bytes (bytes): bytes to send as a file
+            frame_in_bytes (bytes): bytes to send as a file.
         """
         # get current time
         self.request_info['ts'] = self.get_now()
@@ -69,16 +72,19 @@ class SendPolicy:
         else:
             self.upload_info['file_uploaded'] = None
 
-        # send req. / receive response to API
-        response = requests.post(
-                self.URL,
-                data=self.request_info,
-                files=self.upload_info
-            )
-        # print status
-        print(response.status_code, response.json(), sep=' -|- ')
-        # give a break of request! hehe
-        self.wait_until_ready(self.time)
+        # verify duplicated request
+        if (self.request_info, self.upload_info) != self.past_req:
+            # send req. / receive response to API
+            response = requests.post(
+                    self.URL,
+                    data=self.request_info,
+                    files=self.upload_info
+                )
+            self.past_req = (self.request_info, self.upload_info)
+            # print status
+            print(response.status_code, response.json(), sep=' -|- ')
+            # give a break of request! hehe
+            self.wait_until_ready(self.time)
 
 
     def wait_until_ready(self, time2wait):

@@ -1,8 +1,8 @@
 # This file defines some internal variables of this Inspector
 
-# Time delay in seconds to the packet to API
-delay: 5
+# Time delay in seconds to send packet to API
+delay: 1
 # Location of this Inspector
-location: "Entrada principal"
+location: "Entrada 3"
 # URL to reach API
 url_api: "http://localhost:6000/found"

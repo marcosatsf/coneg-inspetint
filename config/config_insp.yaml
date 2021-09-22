@@ -5,4 +5,4 @@ delay: 1
 # Location of this Inspector
 location: "Entrada 3"
 # URL to reach API
-url_api: "http://localhost:6000/found"
+url_api: "http://34.75.48.156:6000/found"

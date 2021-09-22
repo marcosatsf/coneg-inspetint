@@ -136,7 +136,6 @@ class Inspector():
 					face_detected = self.frame[startY:endY, startX:endX]
 					image_bytes = cv2.imencode('.jpg', face_detected)[1].tobytes()
 
-				print(self.current_face, id_registered)
 				if self.current_face < id_registered:
 					self.current_face = id_registered
 					# interacts with API

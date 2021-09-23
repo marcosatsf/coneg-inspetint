@@ -25,7 +25,7 @@ class SendPolicy:
         self.upload_info = {
             'file_uploaded': None
         }
-        self.past_req = None
+        self.past_req = {}
 
 
     def get_now(self) -> int:
@@ -53,12 +53,12 @@ class SendPolicy:
             exe.start()
 
 
-    def send2api(self, frame_in_bytes: bytes) -> None:
+    def send2api(self, frame_in_bytes: bytes = None) -> None:
         """
         Sends data to API. If not wearing mask, sends frame also.
 
         Args:
-            frame_in_bytes (bytes): bytes to send as a file.
+            frame_in_bytes (bytes): Default to None. Bytes to send as a file.
         """
         # get current time
         self.request_info['ts'] = self.get_now()
@@ -73,14 +73,17 @@ class SendPolicy:
             self.upload_info['file_uploaded'] = None
 
         # verify duplicated request
-        if (self.request_info, self.upload_info) != self.past_req:
+        if self.past_req != [frame_in_bytes,self.request_info['ts']]:
             # send req. / receive response to API
             response = requests.post(
                     self.URL,
                     data=self.request_info,
                     files=self.upload_info
                 )
-            self.past_req = (self.request_info, self.upload_info)
+            self.past_req = [
+                frame_in_bytes,
+                self.request_info['ts']
+            ]
             # print status
             print(response.status_code, response.json(), sep=' -|- ')
             # give a break of request! hehe

@@ -5,6 +5,7 @@ from imutils.video import VideoStream
 from send_policy import SendPolicy
 from tracker import EuclideanDistTracker
 import numpy as np
+from time import time
 import imutils
 import cv2
 import os
@@ -134,10 +135,13 @@ class Inspector():
 				else:
 					label = "No Mask"
 					face_detected = self.frame[startY:endY, startX:endX]
-					image_bytes = cv2.imencode('.jpg', face_detected)[1].tobytes()
 
 				if self.current_face < id_registered:
 					self.current_face = id_registered
+					if mask > withoutMask:
+						image_bytes = None
+					else:
+						image_bytes = cv2.imencode('.jpg', face_detected)[1].tobytes()
 					# interacts with API
 					self.sp.send(image_bytes)
 

@@ -1,7 +1,7 @@
 # This file defines some internal variables of this Inspector
 
 # Time delay in seconds to send packet to API
-delay: 1
+delay: 2
 # Location of this Inspector
 location: "Entrada 3"
 # URL to reach API
